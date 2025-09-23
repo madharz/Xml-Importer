@@ -1,0 +1,27 @@
+services:
+  php:
+    build: ./docker/php
+    volumes:
+      - ./src:/var/www/html
+      - ./data:/var/www/data
+    depends_on:
+      - postgres
+      - redis
+    working_dir: /var/www/html
+    tty: true
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: xml_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./docker/sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
