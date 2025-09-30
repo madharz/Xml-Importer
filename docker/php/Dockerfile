@@ -4,4 +4,6 @@ RUN apt-get update && apt-get install -y libpq-dev unzip curl \
     && docker-php-ext-install pdo pdo_pgsql \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
+COPY php.ini /usr/local/etc/php/php.ini
+
 WORKDIR /var/www/html

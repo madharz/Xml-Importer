@@ -3,23 +3,20 @@ require __DIR__ . '/vendor/autoload.php';
 
 use Predis\Client;
 
-$redis = new Client([
-    'scheme' => 'tcp',
-    'host'   => 'redis',
-    'port'   => 6379,
-]);
+
+const WORKER_DELAY_SECONDS = 0;
+
+$redis = new Client(['scheme'=>'tcp','host'=>'redis','port'=>6379]);
 
 $dsn = "pgsql:host=postgres;port=5432;dbname=xml_db;";
-$pdo = new PDO($dsn, "user", "password", [
-    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-]);
+$pdo = new PDO($dsn, "user", "password", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
 
 $insert = $pdo->prepare("INSERT INTO products (name, price) VALUES (:name, :price)");
 
 echo "Worker started. Waiting for jobs...\n";
 
 while (true) {
-    $workerDelaySeconds = 5;
+
     $res = $redis->blpop(['queue:products'], 0);
     if (!$res || count($res) < 2) continue;
 
@@ -38,7 +35,13 @@ while (true) {
 
     $redis->incr('import:processed');
 
+    if (!empty($data['source'])) {
+        $redis->incr("import:{$data['source']}:processed");
+    }
+
     echo "Inserted: " . json_encode($data, JSON_UNESCAPED_UNICODE) . PHP_EOL;
 
-    sleep($workerDelaySeconds);
+    if (WORKER_DELAY_SECONDS > 0) {
+        sleep(WORKER_DELAY_SECONDS);
+    }
 }

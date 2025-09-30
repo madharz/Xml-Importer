@@ -1,14 +1,29 @@
 services:
   php:
     build: ./docker/php
+    working_dir: /var/www/html
+    command: ["php", "-S", "0.0.0.0:8000", "-t", "public"]
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/var/www/html
+      - ./public:/var/www/html/public
+      - ./data:/var/www/data
+      - ./uploads:/var/www/uploads
+    depends_on:
+      - postgres
+      - redis
+
+  worker:
+    build: ./docker/php
+    working_dir: /var/www/html
+    command: ["php", "worker.php"]
     volumes:
       - ./src:/var/www/html
       - ./data:/var/www/data
     depends_on:
       - postgres
       - redis
-    working_dir: /var/www/html
-    tty: true
 
   postgres:
     image: postgres:15

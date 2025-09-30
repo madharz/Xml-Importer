@@ -1,44 +1,39 @@
 <?php
 require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/lib/Enqueue.php';
 
 use Predis\Client;
 
-$redis = new Client([
-    'scheme' => 'tcp',
-    'host'   => 'redis',
-    'port'   => 6379,
-]);
+$redis = new Client(['scheme'=>'tcp','host'=>'redis','port'=>6379]);
 
-$xmlFile = '/var/www/data/input.xml';
-if (!file_exists($xmlFile)) {
-    fwrite(STDERR, "XML file not found: $xmlFile\n");
-    exit(1);
-}
+$path = $argv[1] ?? '/var/www/data/input.xml';
 
-$xml = simplexml_load_file($xmlFile);
-if ($xml === false) {
-    fwrite(STDERR, "Failed to parse XML\n");
-    exit(1);
-}
-
-$total = count($xml->product);
-$redis->set('import:total', $total);
-$redis->set('import:processed', 0);
-
-$queued = 0;
-foreach ($xml->product as $p) {
-    $name  = trim((string)$p->name);
-    $price = (float)$p->price;
-
-    if ($name === '' || $price < 0) {
-        fwrite(STDERR, "Skip invalid item: '$name' / $price\n");
-        continue;
+$files = [];
+if (is_dir($path)) {
+    foreach (glob(rtrim($path, '/').'/*.xml') as $f) {
+        if (is_file($f)) $files[] = $f;
     }
-
-    $payload = json_encode(['name' => $name, 'price' => $price], JSON_UNESCAPED_UNICODE);
-
-    $redis->rpush('queue:products', [$payload]);
-    $queued++;
+} else {
+    $files[] = $path;
 }
 
-echo "Queued $queued / $total items to Redis (queue:products)\n";
+if (!$files) {
+    fwrite(STDERR, "No XML files at: $path\n");
+    exit(0);
+}
+
+$totalQueued = 0;
+$totalItems  = 0;
+
+foreach ($files as $file) {
+    try {
+        $res = enqueueXmlFile($redis, $file);
+        echo "[{$res['fileId']}] queued {$res['queued']} / {$res['total']}\n";
+        $totalQueued += $res['queued'];
+        $totalItems  += $res['total'];
+    } catch (Throwable $e) {
+        fwrite(STDERR, "ERROR: ".$e->getMessage()."\n");
+    }
+}
+
+echo "TOTAL queued: $totalQueued / $totalItems\n";

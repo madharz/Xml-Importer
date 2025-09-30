@@ -1,6 +1,6 @@
 {
   "name": "xml-importer/app",
-  "description": "Simple XML -> Redis -> Postgres pipeline",
+  "description": "XML -> Redis -> Postgres pipeline (CLI + Web)",
   "type": "project",
   "require": {
     "predis/predis": "^2.2"
